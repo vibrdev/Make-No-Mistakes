@@ -508,6 +508,12 @@ class Api(CheckupApi, DeviceApi, GitHubApi, VoiceApi):
         p = providers_mod.preset(preset)
         if not p or not providers_mod.is_local(p["base_url"]):
             return {"error": "not a local provider"}
+        from .. import skoolie as _skoolie
+        if _skoolie.owns(p["base_url"]):
+            # Not an Ollama server: there is nothing installed to list, and
+            # asking /api/tags would say "not running" about a bridge that
+            # only starts when a client is built.
+            return {"running": True, "models": [_skoolie.MODEL]}
         host = p["base_url"].rsplit("/v1", 1)[0]
         try:
             # Short: this runs while someone is looking at the setup screen,
