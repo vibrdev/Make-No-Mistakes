@@ -2318,6 +2318,13 @@ class Api(CheckupApi, DeviceApi, GitHubApi, VoiceApi):
         client = self._ensure_client()
         if not client or not first_message.strip():
             return ""
+        # Skoolie answers by typing into a real chat page. Naming the chat is a
+        # second round trip through it -- run BEFORE the turn is marked done, so
+        # the turn hangs for the length of it -- and it opens a new conversation
+        # underneath the one the user is in. The derived title is fine.
+        from .. import skoolie as _skoolie
+        if _skoolie.owns(getattr(client, "base_url", "")):
+            return ""
         try:
             res = client.chat(
                 model=cfg_default_model(self._cfg),

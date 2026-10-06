@@ -96,3 +96,19 @@ def test_the_preset_points_at_the_bridge():
     assert skoolie.owns(p["base_url"]) and p["model"] == skoolie.MODEL
     assert providers.preset_from_base_url(skoolie.BASE_URL)["key"] == "skoolie"
     assert providers.is_local(p["base_url"])
+
+
+def test_naming_the_chat_does_not_go_through_skoolie():
+    """It ran before the turn was marked done, and each call is a full browser
+    round trip that also starts a new conversation under the live one."""
+    from glmcode.gui import app as gui_app
+
+    class Boom:
+        base_url = skoolie.BASE_URL
+        def chat(self, *a, **k):
+            raise AssertionError("asked Skoolie for a title")
+
+    api = gui_app.Api.__new__(gui_app.Api)
+    api._ensure_client = lambda: Boom()
+    api._cfg = None
+    assert api._generate_title("hej") == ""

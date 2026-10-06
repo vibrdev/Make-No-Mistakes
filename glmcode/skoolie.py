@@ -299,6 +299,20 @@ class _Handler(BaseHTTPRequestHandler):
                              "message": {"role": "assistant", "content": answer}}]})
 
 
+class _Bridge(HTTPServer):
+    # HTTPServer sets SO_REUSEADDR, which on Windows lets a second process bind
+    # a port that is in ACTIVE use -- so a second copy of the app would "start"
+    # its own bridge on the same port and which one answers is undefined.
+    allow_reuse_address = False
+
+    def server_bind(self):
+        if sys.platform == "win32":
+            import socket
+            self.socket.setsockopt(socket.SOL_SOCKET,
+                                   socket.SO_EXCLUSIVEADDRUSE, 1)
+        super().server_bind()
+
+
 _server_lock = threading.Lock()
 _server: HTTPServer | None = None
 
@@ -315,7 +329,7 @@ def ensure_server() -> None:
             return
         try:
             # Serial on purpose: one browser, one thread (see SkoolieChat).
-            _server = HTTPServer((HOST, PORT), _Handler)
+            _server = _Bridge((HOST, PORT), _Handler)
         except OSError:
             _server = False  # type: ignore[assignment]
             return

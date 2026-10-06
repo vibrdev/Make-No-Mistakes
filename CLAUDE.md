@@ -2512,3 +2512,11 @@ the server the first time a client is built for it.
   system prompt is never forwarded.
 - **One browser, one thread.** The server is deliberately serial; Playwright's
   sync API belongs to the thread that started it.
+
+- **No model-written chat title through Skoolie.** `_generate_title` runs after
+  `run_turn` and before the turn is marked done, so for a browser-driven
+  provider the turn hung for a whole extra round trip — and the call opened a
+  new conversation under the live one. It is skipped; the derived title stays.
+- **The bridge binds exclusively on Windows** (`SO_EXCLUSIVEADDRUSE`), for the
+  same reason as the extension bridge: `SO_REUSEADDR` there allows a second
+  process onto a port in active use.
