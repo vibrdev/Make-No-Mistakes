@@ -232,6 +232,9 @@ class ZaiClient:
         # an OpenAI one, and this client stopped being z.ai-only some time ago
         # -- the name is all that is left of that.
         from . import providers as _providers
+        from . import skoolie as _skoolie
+        if _skoolie.owns(self.base_url):
+            _skoolie.ensure_server()
         self.supports_thinking = _providers.supports(self.base_url, "thinking")
         self.supports_thought_signature = _providers.supports(
             self.base_url, "thought_signature")
