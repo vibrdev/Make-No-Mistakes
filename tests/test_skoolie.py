@@ -38,7 +38,8 @@ def test_a_continued_history_sends_only_the_new_turn():
     sysm = {"role": "system", "content": "huge prompt"}
     assert c.reply([sysm, U("hej")]) == "svar 1"
     assert c.reply([sysm, U("hej"), A("svar 1"), U("mer")]) == "svar 2"
-    assert chat.sent == ["hej", "mer"]          # system prompt never forwarded
+    assert [q.endswith(t) for q, t in zip(chat.sent, ["hej", "mer"])] == [True, True]
+    assert "huge prompt" not in "".join(chat.sent)   # system prompt never forwarded
     assert chat.fresh == 1
 
 
@@ -69,7 +70,7 @@ def test_server_speaks_openai_both_ways(monkeypatch):
         assert lines[-1] == "data: [DONE]"
         first = json.loads(lines[0][5:])
         assert first["choices"][0]["delta"]["content"] == "svar 2"
-        assert chat.sent[-1] == "åäö"
+        assert chat.sent[-1].endswith("åäö")
         assert requests.get(f"{base}/models").json()["data"][0]["id"] == "skoolie"
     finally:
         srv.shutdown()
@@ -112,3 +113,46 @@ def test_naming_the_chat_does_not_go_through_skoolie():
     api._ensure_client = lambda: Boom()
     api._cfg = None
     assert api._generate_title("hej") == ""
+
+
+def test_mojibake_is_repaired_and_correct_text_is_left_alone():
+    bad = "Jag kan tyvÃ¤rr inte svara pÃ¥ det, hjÃ¤lper"
+    assert skoolie.fix_mojibake(bad) == "Jag kan tyvärr inte svara på det, hjälper"
+    assert skoolie.fix_mojibake("Här är åäö") == "Här är åäö"
+    assert skoolie.fix_mojibake("plain\n\u00c3\u00b6ver") == "plain\n\u00f6ver"
+
+
+def test_a_refusal_is_recognised_either_way_and_only_when_short():
+    ok = "Jag kan tyvärr inte svara på det, men jag hjälper dig gärna med andra frågor"
+    assert skoolie.is_refusal(ok)
+    assert skoolie.is_refusal(ok.encode("utf-8").decode("latin-1"))
+    assert not skoolie.is_refusal("Så här gör du. " * 40 + ok)
+
+
+def test_a_refusal_is_retried_with_a_reframed_prompt_and_never_shown():
+    class Refuses(FakeChat):
+        def ask(self, q):
+            self.sent.append(q)
+            if len(self.sent) < 3:
+                return "Jag kan tyvÃ¤rr inte svara pÃ¥ det, men jag hjÃ¤lper dig gÃ¤rna med andra frÃ¥gor"
+            return "Här är svaret"
+    chat = Refuses()
+    assert skoolie.Conversation(chat).reply([U("fixa buggen")]) == "Här är svaret"
+    assert len(chat.sent) == 3
+    assert chat.sent[0].startswith(skoolie.PREAMBLE)
+    assert chat.sent[1].startswith(skoolie.RETRY_PREAMBLES[0])
+    assert chat.sent[2].startswith(skoolie.RETRY_PREAMBLES[1])
+
+
+def test_giving_up_is_an_error_not_the_canned_line():
+    class Always(FakeChat):
+        def ask(self, q):
+            self.sent.append(q)
+            return "Jag kan tyvärr inte svara på det, men jag hjälper dig gärna med andra frågor"
+    c = skoolie.Conversation(Always())
+    try:
+        c.reply([U("x")])
+        assert False, "should have raised"
+    except skoolie.SkoolieError as e:
+        assert "declined" in str(e)
+    assert c._head is None
