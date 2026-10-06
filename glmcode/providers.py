@@ -26,6 +26,8 @@ _ENV_VARS = {
     # nobody has thought about, and config.provider_env_var() relies on the
     # difference to avoid falling back to ZAI_API_KEY for it.
     "ollama": "",
+    # Signs in through a browser window; there is no key to hold.
+    "skoolie": "",
     # Typed in by hand, so there is no vendor to name it after. Deliberately
     # not ZAI_API_KEY: an endpoint someone pasted is not z.ai, and reusing that
     # name is how the config ended up believing everything was.
@@ -182,6 +184,32 @@ PRESETS = [
             "Open Google AI Studio and sign in with a Google account.",
             "Click Get API key, then Create API key.",
             "Copy it and paste it below.",
+        ],
+    },
+    {
+        "key": "skoolie",
+        "label": "Skoolie (Astrid)",
+        # Not a real API: glmcode/skoolie.py drives the site's chat page and
+        # serves this loopback address in the OpenAI shape, so nothing
+        # downstream needs to know. ZaiClient starts it on first use.
+        "base_url": "http://127.0.0.1:11437/v1",
+        "model": "skoolie",
+        "vision_model": "",
+        "models": ["skoolie"],
+        "free_models": [],
+        "unsure_models": [],
+        "env_var": "",
+        "needs_key": False,
+        "key_url": "https://app.skoolie.se/mina-sidor/chatta",
+        "blurb": "The Skoolie chatbot, through your own signed-in account.",
+        "free": "",
+        "caveat": (
+            "Text only: Skoolie cannot call tools, so the agent can talk but "
+            "not edit files or run commands. Your messages go to Skoolie."
+        ),
+        "steps": [
+            "Run  python -m glmcode.skoolie --login  and sign in once.",
+            "Pick Skoolie here. The app starts the bridge itself.",
         ],
     },
     {

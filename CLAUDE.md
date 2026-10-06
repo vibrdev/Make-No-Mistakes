@@ -2492,3 +2492,23 @@ Do not re-litigate these. Each cost a round trip to a real phone.
   keyboard *sliding away*, not its settled size; and an already-open keyboard
   never resizes, so `visualViewport` never fires to correct the prediction and
   the composer stays under the accessory bar until blur.
+
+## Skoolie is a provider through a loopback bridge, and it cannot use tools
+
+Skoolie has no API, only a chat page. `glmcode/skoolie.py` drives that page
+with Playwright (persistent profile `~/.skoolie-profile`, signed in once by hand
+with `python -m glmcode.skoolie --login`) and serves the OpenAI
+`/chat/completions` shape on `127.0.0.1:11437`. The `skoolie` preset points at
+that address, so no call site knows it is special; `ZaiClient.__init__` starts
+the server the first time a client is built for it.
+
+- **It has no tool calling.** The tool schemas are ignored and no `tool_calls`
+  come back, so this agent can talk but not edit files or run commands. Say so
+  rather than letting it look broken.
+- **Failures are 400/401, never 5xx.** The client retries 5xx, and a retry would
+  type the same question into the chat a second time.
+- **Only the new turns are typed** when a request is the previous history plus
+  more; anything else starts a fresh conversation with the whole history. The
+  system prompt is never forwarded.
+- **One browser, one thread.** The server is deliberately serial; Playwright's
+  sync API belongs to the thread that started it.

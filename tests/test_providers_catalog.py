@@ -65,7 +65,9 @@ def test_every_preset_can_actually_be_used():
 def test_presets_do_not_share_an_environment_variable():
     """Sharing one would mean configuring the second provider silently
     overwrites the first one's key."""
-    names = [providers.env_var_for(p["key"]) for p in providers.PRESETS]
+    # "" means "no key to hold" (Ollama, Skoolie) and may repeat.
+    names = [n for n in (providers.env_var_for(p["key"])
+                         for p in providers.PRESETS) if n]
     assert len(set(names)) == len(names)
 
 
